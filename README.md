@@ -20,3 +20,12 @@ cuando se clonó por http
 ```sh
 git remote set-url origin git@github.com:pacodan/nvim.git
 ```
+
+en windows ver jdks:
+```ps1
+Get-ChildItem "C:\Program Files\Amazon Corretto" -Directory
+```
+example:
+C:\Program Files\Amazon Corretto\jdk17.0.20_10
+C:\Program Files\Amazon Corretto\jdk21.0.12_9
+

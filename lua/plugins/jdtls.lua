@@ -1,36 +1,56 @@
 return {
   {
     "mfussenegger/nvim-jdtls",
+
     ft = "java",
 
     config = function()
       local jdtls = require("jdtls")
-      local jdtls_path = vim.fn.expand("~/.local/share/nvim/jdtls")
+      local java = require("config.java")
 
-      -- Java encontrado automáticamente mediante PATH
-      local java = vim.fn.exepath("java")
+      ------------------------------------------------------------
+      -- JDKs
+      ------------------------------------------------------------
 
-      if java == "" then
-        vim.notify("No se encontró Java en PATH", vim.log.levels.ERROR)
+      local jdk17 = java.require(17)
+      local jdk21 = java.require(21)
+
+      if not jdk17 or not jdk21 then
         return
       end
 
-      -- Launcher de JDTLS
+      ------------------------------------------------------------
+      -- JDTLS
+      --
+      -- JDTLS corre con Java 21.
+      ------------------------------------------------------------
+
+      local jdtls_path =
+        vim.fn.expand("~/.local/share/nvim/jdtls")
+
       local launcher = vim.fn.glob(
-        jdtls_path .. "/plugins/org.eclipse.equinox.launcher_*.jar"
+        jdtls_path
+          .. "/plugins/org.eclipse.equinox.launcher_*.jar"
       )
 
       if launcher == "" then
         vim.notify(
-          "No se encontró el launcher de JDTLS en " .. jdtls_path,
+          "No se encontró el launcher de JDTLS en "
+            .. jdtls_path,
           vim.log.levels.ERROR
         )
+
         return
       end
 
-      local group = vim.api.nvim_create_augroup("Jdtls", {
-        clear = true,
-      })
+      ------------------------------------------------------------
+      -- Autocmd
+      ------------------------------------------------------------
+
+      local group = vim.api.nvim_create_augroup(
+        "Jdtls",
+        { clear = true }
+      )
 
       vim.api.nvim_create_autocmd("FileType", {
         group = group,
@@ -39,43 +59,58 @@ return {
         callback = function(args)
           local bufnr = args.buf
 
-          -- Seguridad: jamás arrancar JDTLS fuera de Java
           if vim.bo[bufnr].filetype ~= "java" then
             return
           end
 
-          -- Buscar raíz usando el archivo Java actual
-          local root_dir = require("jdtls.setup").find_root({
-            "mvnw",
-            "gradlew",
-            "pom.xml",
-            "build.gradle",
-            "build.gradle.kts",
-            ".git",
-          }, vim.api.nvim_buf_get_name(bufnr))
+          ----------------------------------------------------------
+          -- Root
+          ----------------------------------------------------------
+
+          local root_dir =
+            require("jdtls.setup").find_root({
+              "mvnw",
+              "gradlew",
+              "pom.xml",
+              "build.gradle",
+              "build.gradle.kts",
+              ".git",
+            }, vim.api.nvim_buf_get_name(bufnr))
 
           if not root_dir then
             vim.notify(
               "No se encontró la raíz del proyecto Java",
               vim.log.levels.WARN
             )
+
             return
           end
 
-          -- Nombre del proyecto
-          local project_name = vim.fn.fnamemodify(root_dir, ":t")
+          ----------------------------------------------------------
+          -- Workspace
+          ----------------------------------------------------------
 
-          -- Workspace independiente
+          local project_name =
+            vim.fn.fnamemodify(root_dir, ":t")
+
           local workspace_dir =
             vim.fn.stdpath("data")
             .. "/jdtls-workspaces/"
             .. project_name
 
+          ----------------------------------------------------------
+          -- JDTLS
+          ----------------------------------------------------------
+
           local config = {
             name = "jdtls",
 
+            --------------------------------------------------------
+            -- JDTLS corre con Java 21
+            --------------------------------------------------------
+
             cmd = {
-              java,
+              jdk21.java,
 
               "-Declipse.application=org.eclipse.jdt.ls.core.id1",
               "-Dosgi.bundles.defaultStartLevel=4",
@@ -98,7 +133,7 @@ return {
               launcher,
 
               "-configuration",
-              jdtls_path .. "/config_linux",
+              jdtls_path .. "/config_win",
 
               "-data",
               workspace_dir,
@@ -106,14 +141,34 @@ return {
 
             root_dir = root_dir,
 
+            --------------------------------------------------------
+            -- JDKs disponibles para los proyectos
+            --------------------------------------------------------
+
             settings = {
               java = {
                 configuration = {
-                  runtimes = {},
+                  runtimes = {
+                    {
+                      name = "JavaSE-17",
+                      path = jdk17.home,
+                      default = true,
+                    },
+
+                    {
+                      name = "JavaSE-21",
+                      path = jdk21.home,
+                    },
+                  },
                 },
               },
             },
           }
+
+          vim.notify(
+            "JDTLS iniciado con Java 21",
+            vim.log.levels.INFO
+          )
 
           jdtls.start_or_attach(config)
         end,

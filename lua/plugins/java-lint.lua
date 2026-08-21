@@ -2,30 +2,59 @@ return {
   {
     "mfussenegger/nvim-lint",
 
-    event = { "BufReadPost", "BufNewFile" },
+    event = {
+      "BufReadPost",
+      "BufNewFile",
+    },
 
     config = function()
       local lint = require("lint")
-
-      local config_dir = vim.fn.stdpath("config")
-
-      local checkstyle_jar = config_dir .. "/checkstyle/checkstyle-11.1.0-all.jar"
-
-      local google_checks = config_dir .. "/checkstyle/google_checks_checkstyle-checkstyle-11.1.0.xml"
+      local java = require("config.java")
 
       ------------------------------------------------------------
-      -- Configuración de Checkstyle
+      -- Checkstyle SIEMPRE con JDK 21
+      ------------------------------------------------------------
+
+      local jdk21 = java.require(21)
+
+      if not jdk21 then
+        return
+      end
+
+      local config_dir =
+        vim.fn.stdpath("config")
+
+      local checkstyle_jar =
+        config_dir
+        .. "/checkstyle/checkstyle-11.1.0-all.jar"
+
+      local google_checks =
+        config_dir
+        .. "/checkstyle/google_checks_checkstyle-checkstyle-11.1.0.xml"
+
+      ------------------------------------------------------------
+      -- Checkstyle
       ------------------------------------------------------------
 
       lint.linters.checkstyle = {
         name = "checkstyle",
-        cmd = "java",
+
+        -- IMPORTANTE:
+        -- no "java"
+        -- no JAVA_HOME
+        -- no path hardcodeado
+        --
+        -- usa el JDK 21 descubierto mediante where/which.
+
+        cmd = jdk21.java,
 
         args = {
           "-jar",
           checkstyle_jar,
+
           "-c",
           google_checks,
+
           "-f",
           "plain",
 
@@ -43,12 +72,19 @@ return {
         parser = function(output, bufnr)
           local diagnostics = {}
 
-          for line in vim.gsplit(output, "\n", { plain = true }) do
+          for line in vim.gsplit(
+            output,
+            "\n",
+            { plain = true }
+          ) do
             local severity, file, lnum, col, message, check =
-              line:match("^%[(%u+)%]%s+(.+):(%d+):(%d+):%s+(.-)%s+%[([^%]]+)%]%s*$")
+              line:match(
+                "^%[(%u+)%]%s+(.+):(%d+):(%d+):%s+(.-)%s+%[([^%]]+)%]%s*$"
+              )
 
             if severity and lnum and col and message and check then
-              local level = vim.diagnostic.severity.WARN
+              local level =
+                vim.diagnostic.severity.WARN
 
               if severity == "ERROR" then
                 level = vim.diagnostic.severity.ERROR
@@ -58,12 +94,17 @@ return {
 
               table.insert(diagnostics, {
                 lnum = tonumber(lnum) - 1,
-                col = math.max(tonumber(col) - 1, 0),
+
+                col = math.max(
+                  tonumber(col) - 1,
+                  0
+                ),
 
                 end_lnum = tonumber(lnum) - 1,
                 end_col = tonumber(col),
 
-                message = message .. " [" .. check .. "]",
+                message =
+                  message .. " [" .. check .. "]",
 
                 severity = level,
                 source = "checkstyle",
@@ -79,79 +120,9 @@ return {
       -- Java -> Checkstyle
       ------------------------------------------------------------
 
-      lint.linters_by_ft.java = { "checkstyle" }
-
-      ------------------------------------------------------------
-      -- Autocommands
-      ------------------------------------------------------------
-
-      local group = vim.api.nvim_create_augroup("JavaCheckstyle", { clear = true })
-
-      ------------------------------------------------------------
-      -- Al abrir un Java
-      ------------------------------------------------------------
-
-      vim.api.nvim_create_autocmd("BufEnter", {
-        group = group,
-        pattern = "*.java",
-
-        callback = function(args)
-          lint.try_lint("checkstyle", {
-            bufnr = args.buf,
-          })
-        end,
-      })
-
-      ------------------------------------------------------------
-      -- Al guardar
-      ------------------------------------------------------------
-
-      vim.api.nvim_create_autocmd("BufWritePost", {
-        group = group,
-        pattern = "*.java",
-
-        callback = function(args)
-          lint.try_lint("checkstyle", {
-            bufnr = args.buf,
-          })
-        end,
-      })
-
-      ---------------------------------------------------------------
-      ----- Mientras editas
-      ----- Espera 500 ms después del último cambio.
-      ---------------------------------------------------------------
-      ---
-      ---local timers = {}
-      ---
-      ---vim.api.nvim_create_autocmd(
-      ---  { "TextChanged", "TextChangedI" },
-      ---  {
-      ---    group = group,
-      ---    pattern = "*.java",
-      ---
-      ---    callback = function(args)
-      ---      local bufnr = args.buf
-      ---
-      ---      if timers[bufnr] then
-      ---        timers[bufnr]:stop()
-      ---        timers[bufnr]:close()
-      ---        timers[bufnr] = nil
-      ---      end
-      ---
-      ---      timers[bufnr] = vim.defer_fn(function()
-      ---        timers[bufnr] = nil
-      ---
-      ---        if vim.api.nvim_buf_is_valid(bufnr)
-      ---            and vim.bo[bufnr].filetype == "java" then
-      ---          lint.try_lint("checkstyle", {
-      ---            bufnr = bufnr,
-      ---          })
-      ---        end
-      ---      end, 500)
-      ---    end,
-      ---  }
-      ---)
+      lint.linters_by_ft.java = {
+        "checkstyle",
+      }
     end,
   },
 }
