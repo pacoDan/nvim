@@ -2,6 +2,7 @@ return {
   {
     "mfussenegger/nvim-jdtls",
 
+
     ft = "java",
 
     config = function()
@@ -112,25 +113,25 @@ return {
             cmd = {
               jdk21.java,
 
-              "-Declipse.application=org.eclipse.jdt.ls.core.id1",
-              "-Dosgi.bundles.defaultStartLevel=4",
-              "-Declipse.product=org.eclipse.jdt.ls.core.product",
+          "-Declipse.application=org.eclipse.jdt.ls.core.id1",
+          "-Dosgi.bundles.defaultStartLevel=4",
+          "-Declipse.product=org.eclipse.jdt.ls.core.product",
 
-              "-Dlog.protocol=true",
-              "-Dlog.level=ALL",
+          "-Dlog.protocol=true",
+          "-Dlog.level=ALL",
 
-              "-Xms1g",
+          "-Xms1g",
 
-              "--add-modules=ALL-SYSTEM",
+          "--add-modules=ALL-SYSTEM",
 
-              "--add-opens",
-              "java.base/java.util=ALL-UNNAMED",
+          "--add-opens",
+          "java.base/java.util=ALL-UNNAMED",
 
-              "--add-opens",
-              "java.base/java.lang=ALL-UNNAMED",
+          "--add-opens",
+          "java.base/java.lang=ALL-UNNAMED",
 
-              "-jar",
-              launcher,
+          "-jar",
+          launcher,
 
               "-configuration",
               jdtls_path .. "/config_win",
