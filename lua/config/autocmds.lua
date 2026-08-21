@@ -21,3 +21,68 @@ vim.api.nvim_create_autocmd("FileType", {
     vim.b.autoformat = false
   end,
 })
+--
+-- ------------------------------------------------------------
+-- -- Diagnósticos
+-- --
+-- -- Mostrar normalmente durante 5 segundos y después
+-- -- ocultarlos visualmente.
+-- --
+-- -- IMPORTANTE:
+-- -- NO se utiliza vim.diagnostic.open_float().
+-- -- Por lo tanto no aparecen ventanas flotantes.
+-- ------------------------------------------------------------
+--
+-- local diagnostic_timers = {}
+--
+-- vim.api.nvim_create_autocmd("DiagnosticChanged", {
+--   callback = function(args)
+--     local bufnr = args.buf
+--
+--     if not vim.api.nvim_buf_is_valid(bufnr) then
+--       return
+--     end
+--
+--     -- Cancelar el temporizador anterior de este buffer
+--     if diagnostic_timers[bufnr] then
+--       diagnostic_timers[bufnr]:stop()
+--       diagnostic_timers[bufnr]:close()
+--       diagnostic_timers[bufnr] = nil
+--     end
+--
+--     -- Si no hay diagnósticos, no hacemos nada
+--     local diagnostics = vim.diagnostic.get(bufnr)
+--
+--     if #diagnostics == 0 then
+--       return
+--     end
+--
+--     -- Mostrar todos los diagnósticos normalmente
+--     vim.diagnostic.show(nil, bufnr)
+--
+--     -- Ocultarlos después de 5 segundos
+--     diagnostic_timers[bufnr] = vim.defer_fn(function()
+--       diagnostic_timers[bufnr] = nil
+--
+--       if vim.api.nvim_buf_is_valid(bufnr) then
+--         vim.diagnostic.hide(nil, bufnr)
+--       end
+--     end, 5000)
+--   end,
+-- })
+--
+-- ------------------------------------------------------------
+-- -- Limpiar timers cuando se elimina un buffer
+-- ------------------------------------------------------------
+--
+-- vim.api.nvim_create_autocmd("BufDelete", {
+--   callback = function(args)
+--     local bufnr = args.buf
+--
+--     if diagnostic_timers[bufnr] then
+--       diagnostic_timers[bufnr]:stop()
+--       diagnostic_timers[bufnr]:close()
+--       diagnostic_timers[bufnr] = nil
+--     end
+--   end,
+-- })

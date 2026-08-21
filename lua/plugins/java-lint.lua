@@ -9,12 +9,9 @@ return {
 
       local config_dir = vim.fn.stdpath("config")
 
-      local checkstyle_jar =
-        config_dir .. "/checkstyle/checkstyle-11.1.0-all.jar"
+      local checkstyle_jar = config_dir .. "/checkstyle/checkstyle-11.1.0-all.jar"
 
-      local google_checks =
-        config_dir
-          .. "/checkstyle/google_checks_checkstyle-checkstyle-11.1.0.xml"
+      local google_checks = config_dir .. "/checkstyle/google_checks_checkstyle-checkstyle-11.1.0.xml"
 
       ------------------------------------------------------------
       -- Configuración de Checkstyle
@@ -48,9 +45,7 @@ return {
 
           for line in vim.gsplit(output, "\n", { plain = true }) do
             local severity, file, lnum, col, message, check =
-              line:match(
-                "^%[(%u+)%]%s+(.+):(%d+):(%d+):%s+(.-)%s+%[([^%]]+)%]%s*$"
-              )
+              line:match("^%[(%u+)%]%s+(.+):(%d+):(%d+):%s+(.-)%s+%[([^%]]+)%]%s*$")
 
             if severity and lnum and col and message and check then
               local level = vim.diagnostic.severity.WARN
@@ -90,8 +85,7 @@ return {
       -- Autocommands
       ------------------------------------------------------------
 
-      local group =
-        vim.api.nvim_create_augroup("JavaCheckstyle", { clear = true })
+      local group = vim.api.nvim_create_augroup("JavaCheckstyle", { clear = true })
 
       ------------------------------------------------------------
       -- Al abrir un Java
@@ -123,41 +117,41 @@ return {
         end,
       })
 
-      ------------------------------------------------------------
-      -- Mientras editas
-      -- Espera 500 ms después del último cambio.
-      ------------------------------------------------------------
-
-      local timers = {}
-
-      vim.api.nvim_create_autocmd(
-        { "TextChanged", "TextChangedI" },
-        {
-          group = group,
-          pattern = "*.java",
-
-          callback = function(args)
-            local bufnr = args.buf
-
-            if timers[bufnr] then
-              timers[bufnr]:stop()
-              timers[bufnr]:close()
-              timers[bufnr] = nil
-            end
-
-            timers[bufnr] = vim.defer_fn(function()
-              timers[bufnr] = nil
-
-              if vim.api.nvim_buf_is_valid(bufnr)
-                  and vim.bo[bufnr].filetype == "java" then
-                lint.try_lint("checkstyle", {
-                  bufnr = bufnr,
-                })
-              end
-            end, 500)
-          end,
-        }
-      )
+      ---------------------------------------------------------------
+      ----- Mientras editas
+      ----- Espera 500 ms después del último cambio.
+      ---------------------------------------------------------------
+      ---
+      ---local timers = {}
+      ---
+      ---vim.api.nvim_create_autocmd(
+      ---  { "TextChanged", "TextChangedI" },
+      ---  {
+      ---    group = group,
+      ---    pattern = "*.java",
+      ---
+      ---    callback = function(args)
+      ---      local bufnr = args.buf
+      ---
+      ---      if timers[bufnr] then
+      ---        timers[bufnr]:stop()
+      ---        timers[bufnr]:close()
+      ---        timers[bufnr] = nil
+      ---      end
+      ---
+      ---      timers[bufnr] = vim.defer_fn(function()
+      ---        timers[bufnr] = nil
+      ---
+      ---        if vim.api.nvim_buf_is_valid(bufnr)
+      ---            and vim.bo[bufnr].filetype == "java" then
+      ---          lint.try_lint("checkstyle", {
+      ---            bufnr = bufnr,
+      ---          })
+      ---        end
+      ---      end, 500)
+      ---    end,
+      ---  }
+      ---)
     end,
   },
 }
