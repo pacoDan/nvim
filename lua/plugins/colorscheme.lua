@@ -2,7 +2,7 @@ return {
   -- add gruvbox
   { "ellisonleao/gruvbox.nvim" },
   -- add dracula
-  { "Mofiqul/dracula.nvim" },
+  { "binhtran432k/dracula.nvim" },
 
   -- Configure LazyVim to load gruvbox
   -- {
@@ -11,6 +11,7 @@ return {
   --     colorscheme = "gruvbox",
   --   },
   -- },
+  --
   -- Configure LazyVim to load dracula
   {
     "LazyVim/LazyVim",
