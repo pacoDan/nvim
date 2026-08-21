@@ -1,121 +1,251 @@
 return {
   {
     "mfussenegger/nvim-jdtls",
+
     ft = "java",
 
     config = function()
       local jdtls = require("jdtls")
+      local jdtls_setup = require("jdtls.setup")
+
       local jdtls_path = vim.fn.expand("~/.local/share/nvim/jdtls")
 
-      -- Java encontrado automáticamente mediante PATH
+      ------------------------------------------------------------
+      -- Java
+      ------------------------------------------------------------
+
       local java = vim.fn.exepath("java")
 
       if java == "" then
-        vim.notify("No se encontró Java en PATH", vim.log.levels.ERROR)
+        vim.notify(
+          "JDTLS: no se encontró java en PATH",
+          vim.log.levels.ERROR
+        )
         return
       end
 
-      -- Launcher de JDTLS
+      ------------------------------------------------------------
+      -- Launcher
+      ------------------------------------------------------------
+
       local launcher = vim.fn.glob(
         jdtls_path .. "/plugins/org.eclipse.equinox.launcher_*.jar"
       )
 
       if launcher == "" then
         vim.notify(
-          "No se encontró el launcher de JDTLS en " .. jdtls_path,
+          "JDTLS: no se encontró el launcher en " .. jdtls_path,
           vim.log.levels.ERROR
         )
         return
       end
 
-      local group = vim.api.nvim_create_augroup("Jdtls", {
-        clear = true,
-      })
+      ------------------------------------------------------------
+      -- Configuración común
+      ------------------------------------------------------------
+
+      local config = {
+        cmd = {
+          java,
+
+          "-Declipse.application=org.eclipse.jdt.ls.core.id1",
+          "-Dosgi.bundles.defaultStartLevel=4",
+          "-Declipse.product=org.eclipse.jdt.ls.core.product",
+
+          "-Dlog.protocol=true",
+          "-Dlog.level=ALL",
+
+          "-Xms1g",
+
+          "--add-modules=ALL-SYSTEM",
+
+          "--add-opens",
+          "java.base/java.util=ALL-UNNAMED",
+
+          "--add-opens",
+          "java.base/java.lang=ALL-UNNAMED",
+
+          "-jar",
+          launcher,
+
+          "-configuration",
+          jdtls_path .. "/config_linux",
+        },
+
+        settings = {
+          java = {
+            configuration = {
+              runtimes = {},
+            },
+
+            maven = {
+              downloadSources = true,
+            },
+
+            references = {
+              includeDecompiledSources = true,
+            },
+
+            implementationsCodeLens = {
+              enabled = true,
+            },
+
+            referencesCodeLens = {
+              enabled = true,
+            },
+          },
+        },
+
+        on_attach = function(client, bufnr)
+          --------------------------------------------------------
+          -- Confirmación
+          --------------------------------------------------------
+
+          vim.notify(
+            "JDTLS conectado: "
+              .. vim.api.nvim_buf_get_name(bufnr),
+            vim.log.levels.INFO
+          )
+
+          --------------------------------------------------------
+          -- Java refactoring
+          --------------------------------------------------------
+
+          vim.keymap.set("n", "<leader>je", function()
+            jdtls.extract_variable()
+          end, {
+            buffer = bufnr,
+            silent = true,
+            desc = "Java: Extract Variable",
+          })
+
+          vim.keymap.set("v", "<leader>je", function()
+            jdtls.extract_variable(true)
+          end, {
+            buffer = bufnr,
+            silent = true,
+            desc = "Java: Extract Variable",
+          })
+
+          vim.keymap.set("v", "<leader>jm", function()
+            jdtls.extract_method(true)
+          end, {
+            buffer = bufnr,
+            silent = true,
+            desc = "Java: Extract Method",
+          })
+
+          vim.keymap.set("n", "<leader>jc", function()
+            jdtls.extract_constant()
+          end, {
+            buffer = bufnr,
+            silent = true,
+            desc = "Java: Extract Constant",
+          })
+
+          --------------------------------------------------------
+          -- Imports
+          --------------------------------------------------------
+
+          vim.keymap.set("n", "<leader>jo", function()
+            jdtls.organize_imports()
+          end, {
+            buffer = bufnr,
+            silent = true,
+            desc = "Java: Organize Imports",
+          })
+
+          --------------------------------------------------------
+          -- Code Action
+          --------------------------------------------------------
+
+          vim.keymap.set("n", "<leader>ja", vim.lsp.buf.code_action, {
+            buffer = bufnr,
+            silent = true,
+            desc = "Java: Code Action",
+          })
+
+          --------------------------------------------------------
+          -- Rename
+          --------------------------------------------------------
+
+          vim.keymap.set("n", "<leader>jr", vim.lsp.buf.rename, {
+            buffer = bufnr,
+            silent = true,
+            desc = "Java: Rename",
+          })
+        end,
+      }
+
+      ------------------------------------------------------------
+      -- MUY IMPORTANTE:
+      --
+      -- start_or_attach se ejecuta por CADA archivo Java.
+      ------------------------------------------------------------
 
       vim.api.nvim_create_autocmd("FileType", {
-        group = group,
         pattern = "java",
+
+        group = vim.api.nvim_create_augroup(
+          "Jdtls",
+          { clear = true }
+        ),
 
         callback = function(args)
           local bufnr = args.buf
 
-          -- Seguridad: jamás arrancar JDTLS fuera de Java
-          if vim.bo[bufnr].filetype ~= "java" then
-            return
-          end
+          --------------------------------------------------------
+          -- Encontrar raíz del proyecto desde ESTE buffer
+          --------------------------------------------------------
 
-          -- Buscar raíz usando el archivo Java actual
-          local root_dir = require("jdtls.setup").find_root({
+          local root_dir = jdtls_setup.find_root({
+            ".git",
             "mvnw",
             "gradlew",
             "pom.xml",
             "build.gradle",
             "build.gradle.kts",
-            ".git",
-          }, vim.api.nvim_buf_get_name(bufnr))
+          })
 
           if not root_dir then
             vim.notify(
-              "No se encontró la raíz del proyecto Java",
+              "JDTLS: no se encontró raíz para "
+                .. vim.api.nvim_buf_get_name(bufnr),
               vim.log.levels.WARN
             )
             return
           end
 
-          -- Nombre del proyecto
-          local project_name = vim.fn.fnamemodify(root_dir, ":t")
+          --------------------------------------------------------
+          -- Workspace
+          --------------------------------------------------------
 
-          -- Workspace independiente
+          local project_name =
+            vim.fn.fnamemodify(root_dir, ":t")
+
           local workspace_dir =
             vim.fn.stdpath("data")
             .. "/jdtls-workspaces/"
             .. project_name
 
-          local config = {
-            name = "jdtls",
+          --------------------------------------------------------
+          -- Config específica de ESTE proyecto/buffer
+          --------------------------------------------------------
 
-            cmd = {
-              java,
+          local buffer_config = vim.deepcopy(config)
 
-              "-Declipse.application=org.eclipse.jdt.ls.core.id1",
-              "-Dosgi.bundles.defaultStartLevel=4",
-              "-Declipse.product=org.eclipse.jdt.ls.core.product",
+          buffer_config.root_dir = root_dir
 
-              "-Dlog.protocol=true",
-              "-Dlog.level=ALL",
+          buffer_config.cmd = vim.deepcopy(config.cmd)
 
-              "-Xms1g",
+          table.insert(buffer_config.cmd, "-data")
+          table.insert(buffer_config.cmd, workspace_dir)
 
-              "--add-modules=ALL-SYSTEM",
+          --------------------------------------------------------
+          -- Arrancar o adjuntar JDTLS
+          --------------------------------------------------------
 
-              "--add-opens",
-              "java.base/java.util=ALL-UNNAMED",
-
-              "--add-opens",
-              "java.base/java.lang=ALL-UNNAMED",
-
-              "-jar",
-              launcher,
-
-              "-configuration",
-              jdtls_path .. "/config_linux",
-
-              "-data",
-              workspace_dir,
-            },
-
-            root_dir = root_dir,
-
-            settings = {
-              java = {
-                configuration = {
-                  runtimes = {},
-                },
-              },
-            },
-          }
-
-          jdtls.start_or_attach(config)
+          jdtls.start_or_attach(buffer_config)
         end,
       })
     end,
