@@ -7,7 +7,7 @@ return {
       local jdtls = require("jdtls")
       local jdtls_path = vim.fn.expand("~/.local/share/nvim/jdtls")
 
-      -- Java que encuentre el PATH
+      -- Java encontrado automáticamente mediante PATH
       local java = vim.fn.exepath("java")
 
       if java == "" then
@@ -15,7 +15,7 @@ return {
         return
       end
 
-      -- Launcher de Eclipse JDTLS
+      -- Launcher de JDTLS
       local launcher = vim.fn.glob(
         jdtls_path .. "/plugins/org.eclipse.equinox.launcher_*.jar"
       )
@@ -28,72 +28,96 @@ return {
         return
       end
 
-      -- Buscar raíz del proyecto Java
-      local root_dir = require("jdtls.setup").find_root({
-        ".git",
-        "mvnw",
-        "gradlew",
-        "pom.xml",
-        "build.gradle",
-        "build.gradle.kts",
+      local group = vim.api.nvim_create_augroup("Jdtls", {
+        clear = true,
       })
 
-      if not root_dir then
-        vim.notify(
-          "No se encontró la raíz del proyecto Java",
-          vim.log.levels.WARN
-        )
-        return
-      end
+      vim.api.nvim_create_autocmd("FileType", {
+        group = group,
+        pattern = "java",
 
-      -- Workspace independiente por proyecto
-      local project_name = vim.fn.fnamemodify(root_dir, ":p:h:t")
+        callback = function(args)
+          local bufnr = args.buf
 
-      local workspace_dir = vim.fn.stdpath("data")
-        .. "/jdtls-workspaces/"
-        .. project_name
+          -- Seguridad: jamás arrancar JDTLS fuera de Java
+          if vim.bo[bufnr].filetype ~= "java" then
+            return
+          end
 
-      local config = {
-        cmd = {
-          java,
+          -- Buscar raíz usando el archivo Java actual
+          local root_dir = require("jdtls.setup").find_root({
+            "mvnw",
+            "gradlew",
+            "pom.xml",
+            "build.gradle",
+            "build.gradle.kts",
+            ".git",
+          }, vim.api.nvim_buf_get_name(bufnr))
 
-          "-Declipse.application=org.eclipse.jdt.ls.core.id1",
-          "-Dosgi.bundles.defaultStartLevel=4",
-          "-Declipse.product=org.eclipse.jdt.ls.core.product",
+          if not root_dir then
+            vim.notify(
+              "No se encontró la raíz del proyecto Java",
+              vim.log.levels.WARN
+            )
+            return
+          end
 
-          "-Dlog.protocol=true",
-          "-Dlog.level=ALL",
+          -- Nombre del proyecto
+          local project_name = vim.fn.fnamemodify(root_dir, ":t")
 
-          "-Xms1g",
+          -- Workspace independiente
+          local workspace_dir =
+            vim.fn.stdpath("data")
+            .. "/jdtls-workspaces/"
+            .. project_name
 
-          "--add-modules=ALL-SYSTEM",
-          "--add-opens",
-          "java.base/java.util=ALL-UNNAMED",
-          "--add-opens",
-          "java.base/java.lang=ALL-UNNAMED",
+          local config = {
+            name = "jdtls",
 
-          "-jar",
-          launcher,
+            cmd = {
+              java,
 
-          "-configuration",
-          jdtls_path .. "/config_linux",
+              "-Declipse.application=org.eclipse.jdt.ls.core.id1",
+              "-Dosgi.bundles.defaultStartLevel=4",
+              "-Declipse.product=org.eclipse.jdt.ls.core.product",
 
-          "-data",
-          workspace_dir,
-        },
+              "-Dlog.protocol=true",
+              "-Dlog.level=ALL",
 
-        root_dir = root_dir,
+              "-Xms1g",
 
-        settings = {
-          java = {
-            configuration = {
-              runtimes = {},
+              "--add-modules=ALL-SYSTEM",
+
+              "--add-opens",
+              "java.base/java.util=ALL-UNNAMED",
+
+              "--add-opens",
+              "java.base/java.lang=ALL-UNNAMED",
+
+              "-jar",
+              launcher,
+
+              "-configuration",
+              jdtls_path .. "/config_linux",
+
+              "-data",
+              workspace_dir,
             },
-          },
-        },
-      }
 
-      jdtls.start_or_attach(config)
+            root_dir = root_dir,
+
+            settings = {
+              java = {
+                configuration = {
+                  runtimes = {},
+                },
+              },
+            },
+          }
+
+          jdtls.start_or_attach(config)
+        end,
+      })
     end,
   },
 }
