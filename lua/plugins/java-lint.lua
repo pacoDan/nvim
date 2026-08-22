@@ -15,11 +15,19 @@ return {
       -- Checkstyle SIEMPRE con JDK 21
       ------------------------------------------------------------
 
-      local jdk21 = java.require(21)
+      local jdk21 = java.find(21)
 
       if not jdk21 then
+        vim.notify(
+          "No se encontró JDK 21 para Checkstyle.",
+          vim.log.levels.ERROR
+        )
         return
       end
+
+      ------------------------------------------------------------
+      -- Paths de Checkstyle
+      ------------------------------------------------------------
 
       local config_dir =
         vim.fn.stdpath("config")
@@ -33,18 +41,11 @@ return {
         .. "/checkstyle/google_checks_checkstyle-checkstyle-11.1.0.xml"
 
       ------------------------------------------------------------
-      -- Checkstyle
+      -- Linter
       ------------------------------------------------------------
 
       lint.linters.checkstyle = {
         name = "checkstyle",
-
-        -- IMPORTANTE:
-        -- no "java"
-        -- no JAVA_HOME
-        -- no path hardcodeado
-        --
-        -- usa el JDK 21 descubierto mediante where/which.
 
         cmd = jdk21.java,
 
@@ -69,7 +70,7 @@ return {
         stream = "stdout",
         ignore_exitcode = true,
 
-        parser = function(output, bufnr)
+        parser = function(output)
           local diagnostics = {}
 
           for line in vim.gsplit(
@@ -82,14 +83,16 @@ return {
                 "^%[(%u+)%]%s+(.+):(%d+):(%d+):%s+(.-)%s+%[([^%]]+)%]%s*$"
               )
 
-            if severity and lnum and col and message and check then
+            if severity and lnum and col then
               local level =
                 vim.diagnostic.severity.WARN
 
               if severity == "ERROR" then
-                level = vim.diagnostic.severity.ERROR
+                level =
+                  vim.diagnostic.severity.ERROR
               elseif severity == "INFO" then
-                level = vim.diagnostic.severity.INFO
+                level =
+                  vim.diagnostic.severity.INFO
               end
 
               table.insert(diagnostics, {
@@ -100,13 +103,17 @@ return {
                   0
                 ),
 
-                end_lnum = tonumber(lnum) - 1,
-                end_col = tonumber(col),
+                end_lnum =
+                  tonumber(lnum) - 1,
+
+                end_col =
+                  tonumber(col),
 
                 message =
                   message .. " [" .. check .. "]",
 
                 severity = level,
+
                 source = "checkstyle",
               })
             end
@@ -115,10 +122,6 @@ return {
           return diagnostics
         end,
       }
-
-      ------------------------------------------------------------
-      -- Java -> Checkstyle
-      ------------------------------------------------------------
 
       lint.linters_by_ft.java = {
         "checkstyle",

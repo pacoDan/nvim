@@ -29,3 +29,8 @@ example:
 C:\Program Files\Amazon Corretto\jdk17.0.20_10
 C:\Program Files\Amazon Corretto\jdk21.0.12_9
 
+
+reemplazo de palabras nativo de vim, ejemplo:
+```vim
+:%s/foo/bar/g
+```
